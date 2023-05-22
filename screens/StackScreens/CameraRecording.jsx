@@ -1,0 +1,394 @@
+import React, {
+	useState,
+	useRef,
+	useEffect,
+	useCallback,
+	useContext,
+} from 'react';
+import {
+	Text,
+	View,
+	TouchableOpacity,
+	StyleSheet,
+	SafeAreaView,
+	ScrollView,
+} from 'react-native';
+import { Camera, useCameraDevices } from 'react-native-vision-camera';
+import Feather from 'react-native-vector-icons/Feather';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import Entypo from 'react-native-vector-icons/Entypo';
+import { Stopwatch } from 'react-native-stopwatch-timer';
+import { FFmpegKit } from 'ffmpeg-kit-react-native';
+import fs from 'react-native-fs';
+import { useIsFocused } from '@react-navigation/native';
+import Reanimated, {
+	useAnimatedProps,
+	useSharedValue,
+	withSpring,
+} from 'react-native-reanimated';
+import { useFocusEffect } from '@react-navigation/native';
+import Orientation from 'react-native-orientation-locker';
+import { UserContext } from '../../context/UserContext';
+import Loader from '../../components/Loader';
+
+const path = fs.DocumentDirectoryPath + '/test.png';
+fs.readFileAssets('images/image.png', 'base64')
+	.then(binary => {
+		fs.writeFile(path, binary, 'base64')
+			.then(success => {
+				console.log('FILE WRITTEN!');
+			})
+			.catch(console.error);
+	})
+	.catch(console.error);
+
+const ReanimatedCamera = Reanimated.createAnimatedComponent(Camera);
+Reanimated.addWhitelistedNativeProps({
+	zoom: true,
+});
+
+export default function CameraRecording({ navigation, route }) {
+	const { userData } = useContext(UserContext);
+	const [displayText, setDisplayText] = useState('');
+	const [recording, setRecording] = useState(false);
+	const [direction, setDirection] = useState('back');
+	const [check, setCheck] = useState(true);
+	const [isStopwatchStart, setIsStopwatchStart] = useState(false);
+	const [loading, setLoading] = useState(false);
+	const cameraRef = useRef(null);
+	const devices = useCameraDevices();
+	const selectedDevice = devices.back;
+	const isScreenFocused = useIsFocused();
+	const zoom = useSharedValue(0);
+
+	useFocusEffect(
+		useCallback(() => {
+			Orientation.lockToLandscape();
+			return () => {
+				Orientation.lockToPortrait();
+				setLoading(false);
+			};
+		}, [])
+	);
+
+	useEffect(() => {
+		const getPermission = async () => {
+			const permission = await Camera.requestCameraPermission();
+			const newMicrophonePermission =
+				await Camera.requestMicrophonePermission();
+			if (permission === 'denied') await Linking.openSetting();
+			if (newMicrophonePermission === 'denied')
+				await Linking.openSetting();
+		};
+		if (route.params && route.params.text) {
+			setDisplayText(route.params.text);
+		}
+		getPermission();
+	}, [route.params]);
+
+	const zoomIncrease = useCallback(() => {
+		zoom.value = withSpring(zoom.value + 1);
+	}, []);
+
+	const zoomDecrease = useCallback(() => {
+		zoom.value = withSpring(zoom.value - 1);
+	}, []);
+
+	const animatedProps = useAnimatedProps(
+		() => ({ zoom: zoom.value }),
+		[zoom]
+	);
+
+	const start = async () => {
+		const watermarkText = userData.user.username;
+		setRecording(true);
+		setIsStopwatchStart(true);
+		await cameraRef.current.startRecording({
+			flash: 'off',
+			onRecordingFinished: async video => {
+				Orientation.lockToPortrait();
+				setLoading(true);
+				setRecording(false);
+				const output = video.path.split('.mp4') + 'con.mp4';
+				const command = `-i ${video.path} -i ${path} -filter_complex "[0:v][1:v] overlay=x=(main_w-overlay_w):0,drawtext=fontfile=/system/fonts/DroidSans.ttf:text='${watermarkText}': x=w-tw-50:y=100:fontsize=25:fontcolor=orange" -codec:v libx264 -profile:v high -level:v 4.2 -preset ultrafast -crf 18 -r 30 -movflags +faststart -c:a aac ${output}`;
+				await FFmpegKit.execute(command);
+				navigation.navigate('PostContentScreen', { uri: output });
+			},
+			onRecordingError: error => console.error(error),
+		});
+	};
+
+	const stop = async () => {
+		await cameraRef.current.stopRecording();
+	};
+
+	const changeCamera = async () => {
+		if (direction === 'back') setDirection('front');
+		else setDirection('back');
+	};
+
+	const pause = async () => {
+		if (check) {
+			await cameraRef.current.pauseRecording();
+			setCheck(false);
+			setIsStopwatchStart(false);
+		} else {
+			await cameraRef.current.resumeRecording();
+			setCheck(true);
+			setIsStopwatchStart(true);
+		}
+	};
+
+	const clearText = () => {
+		setDisplayText('');
+	};
+
+	if (selectedDevice == null || loading) {
+		return (
+			<>
+				<Loader />
+				<Text style={{ color: 'black' }}>Processing Video...</Text>
+			</>
+		);
+	}
+
+	const ScriptView = () => {
+		return (
+			<View style={{ height: '100%' }}>
+				<View style={{ height: '10%' }}>
+					<TouchableOpacity
+						style={{ width: '15%', marginLeft: 'auto' }}
+						onPress={() => clearText()}>
+						<Ionicons
+							name='close-circle'
+							color={'white'}
+							size={30}
+						/>
+					</TouchableOpacity>
+				</View>
+				<ScrollView style={{ height: '90%' }}>
+					<Text
+						style={{
+							fontSize: 25,
+							color: 'white',
+							fontWeight: 'bold',
+						}}>
+						{displayText}
+					</Text>
+				</ScrollView>
+			</View>
+		);
+	};
+	return (
+		<SafeAreaView style={{ flex: 1 }}>
+			<ReanimatedCamera
+				ref={cameraRef}
+				device={direction === 'front' ? devices.front : devices.back}
+				isActive={isScreenFocused}
+				animatedProps={animatedProps}
+				enableZoomGesture={true}
+				style={StyleSheet.absoluteFill}
+				video={true}
+				audio={true}
+				photo={true}
+				enableHighQualityPhotos={true}
+			/>
+			<View style={styles.uppertab}>
+				<View style={styles.innertab}>
+					<TouchableOpacity onPress={() => navigation.goBack()}>
+						<Ionicons
+							name='chevron-back'
+							color={'white'}
+							size={40}
+						/>
+					</TouchableOpacity>
+				</View>
+			</View>
+			<View style={styles.middletab}>
+				<View style={{ width: '16%' }}></View>
+				<View style={{ width: '68%', height: '100%' }}>
+					{displayText === '' ? <View></View> : <ScriptView />}
+				</View>
+				<View style={{ width: '16%' }}>
+					<TouchableOpacity
+						style={{ margin: 10 }}
+						onPress={changeCamera}>
+						<Ionicons name='sync' color={'white'} size={30} />
+					</TouchableOpacity>
+					<TouchableOpacity style={{ margin: 10 }}>
+						<Ionicons name='flash' color={'white'} size={30} />
+					</TouchableOpacity>
+					<TouchableOpacity style={{ margin: 10 }}>
+						<Feather
+							name='zoom-in'
+							color='white'
+							size={30}
+							onPress={zoomIncrease}
+						/>
+					</TouchableOpacity>
+					<TouchableOpacity style={{ margin: 10 }}>
+						<Feather
+							name='zoom-out'
+							color='white'
+							size={30}
+							onPress={zoomDecrease}
+						/>
+					</TouchableOpacity>
+				</View>
+			</View>
+
+			<View style={styles.lasttab}>
+				{!recording && (
+					<>
+						<TouchableOpacity
+							style={[
+								styles.lasttabicon,
+								{
+									height: 70,
+									width: 70,
+									borderWidth: 5,
+									backgroundColor: 'green',
+								},
+							]}
+							onPress={() => navigation.navigate('Teleprompter')}>
+							<Ionicons
+								name='receipt'
+								color={'white'}
+								size={40}
+							/>
+						</TouchableOpacity>
+						<TouchableOpacity
+							onPress={start}
+							style={[
+								styles.lasttabicon,
+								{
+									height: 90,
+									width: 90,
+									borderWidth: 8,
+									backgroundColor: 'red',
+								},
+							]}>
+							<Ionicons
+								name='videocam'
+								color={'white'}
+								size={40}
+							/>
+						</TouchableOpacity>
+						<TouchableOpacity
+							style={[
+								styles.lasttabicon,
+								{
+									height: 70,
+									width: 70,
+									borderWidth: 5,
+									backgroundColor: '#e6b800',
+								},
+							]}>
+							<Ionicons name='albums' color={'white'} size={40} />
+						</TouchableOpacity>
+					</>
+				)}
+				{recording && (
+					<>
+						<TouchableOpacity
+							onPress={start}
+							style={[
+								styles.lasttabicon,
+								{
+									height: 90,
+									width: 90,
+									borderWidth: 8,
+								},
+							]}>
+							<Entypo
+								name='controller-record'
+								color={'red'}
+								size={40}
+								onPress={stop}
+							/>
+						</TouchableOpacity>
+						<TouchableOpacity
+							onPress={start}
+							style={[
+								styles.lasttabicon,
+								{
+									height: 90,
+									width: 90,
+									borderWidth: 8,
+								},
+							]}>
+							{check ? (
+								<Feather
+									name='pause'
+									color={'red'}
+									size={40}
+									onPress={pause}
+								/>
+							) : (
+								<Entypo
+									name='controller-play'
+									color={'red'}
+									size={40}
+									onPress={pause}
+								/>
+							)}
+						</TouchableOpacity>
+						<Stopwatch
+							laps={true}
+							secs
+							start={isStopwatchStart}
+							options={options}
+						/>
+					</>
+				)}
+			</View>
+		</SafeAreaView>
+	);
+}
+
+const styles = StyleSheet.create({
+	uppertab: {
+		height: '10%',
+		alignItems: 'center',
+	},
+	innertab: {
+		width: '92%',
+		height: '100%',
+		flexDirection: 'row',
+		alignItems: 'center',
+		marginTop: 'auto',
+	},
+	middletab: {
+		height: '60%',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		flexDirection: 'row',
+	},
+	lasttab: {
+		height: '30%',
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	lasttabicon: {
+		margin: 10,
+		alignItems: 'center',
+		borderColor: 'white',
+		justifyContent: 'center',
+		borderRadius: 50,
+	},
+});
+
+const options = {
+	container: {
+		padding: 5,
+		borderRadius: 5,
+		width: 200,
+		alignItems: 'center',
+	},
+	text: {
+		fontSize: 25,
+		color: 'red',
+		marginLeft: 7,
+	},
+};
