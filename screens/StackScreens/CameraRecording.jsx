@@ -12,11 +12,11 @@ import {
 	StyleSheet,
 	SafeAreaView,
 	ScrollView,
+	Image
 } from 'react-native';
 import { Camera, useCameraDevices } from 'react-native-vision-camera';
 import Feather from 'react-native-vector-icons/Feather';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import Entypo from 'react-native-vector-icons/Entypo';
 import { Stopwatch } from 'react-native-stopwatch-timer';
 import { FFmpegKit } from 'ffmpeg-kit-react-native';
 import fs from 'react-native-fs';
@@ -60,7 +60,7 @@ export default function CameraRecording({ navigation, route }) {
 	const selectedDevice = devices.back;
 	const isScreenFocused = useIsFocused();
 	const zoom = useSharedValue(0);
-
+	const img1 = require('../../assets/penguin.gif');
 	useFocusEffect(
 		useCallback(() => {
 			Orientation.lockToLandscape();
@@ -146,18 +146,26 @@ export default function CameraRecording({ navigation, route }) {
 	if (selectedDevice == null || loading) {
 		return (
 			<>
-				<Loader />
+				<View style={styles.container1}>
+				<View  style={{alignItems:'center',marginTop:150}}>
 				<Text style={{ color: 'black' }}>Processing Video...</Text>
+					<Image
+						source={img1}
+						style={styles.image}
+					/>
+					</View>
+					<Loader />
+				</View>
 			</>
 		);
 	}
 
 	const ScriptView = () => {
 		return (
-			<View style={{ height: '100%' }}>
-				<View style={{ height: '10%' }}>
+			<View style={{ height: '100%'}}>
+				<View style={{ height: '15%'}}>
 					<TouchableOpacity
-						style={{ width: '15%', marginLeft: 'auto' }}
+						style={{ width: '15%', marginLeft: 'auto',alignItems:'center'}}
 						onPress={() => clearText()}>
 						<Ionicons
 							name='close-circle'
@@ -166,12 +174,13 @@ export default function CameraRecording({ navigation, route }) {
 						/>
 					</TouchableOpacity>
 				</View>
-				<ScrollView style={{ height: '90%' }}>
+				<ScrollView style={{ height: '85%' }}>
 					<Text
 						style={{
-							fontSize: 25,
+							fontSize: 50,
 							color: 'white',
 							fontWeight: 'bold',
+							textAlign:'center'
 						}}>
 						{displayText}
 					</Text>
@@ -179,7 +188,7 @@ export default function CameraRecording({ navigation, route }) {
 			</View>
 		);
 	};
-	return (
+	return (		
 		<SafeAreaView style={{ flex: 1 }}>
 			<ReanimatedCamera
 				ref={cameraRef}
@@ -206,7 +215,7 @@ export default function CameraRecording({ navigation, route }) {
 			</View>
 			<View style={styles.middletab}>
 				<View style={{ width: '16%' }}></View>
-				<View style={{ width: '68%', height: '100%' }}>
+				<View style={{ width: '68%', height: '100%'}}>
 					{displayText === '' ? <View></View> : <ScriptView />}
 				</View>
 				<View style={{ width: '16%' }}>
@@ -291,24 +300,23 @@ export default function CameraRecording({ navigation, route }) {
 				{recording && (
 					<>
 						<TouchableOpacity
-							onPress={start}
+							onPress={stop}
 							style={[
 								styles.lasttabicon,
 								{
-									height: 90,
-									width: 90,
-									borderWidth: 8,
+									height: 70,
+									width: 70,
+									borderWidth: 5,
 								},
 							]}>
-							<Entypo
-								name='controller-record'
+							<Ionicons
+								name='stop'
 								color={'red'}
 								size={40}
-								onPress={stop}
 							/>
 						</TouchableOpacity>
 						<TouchableOpacity
-							onPress={start}
+							onPress={pause}
 							style={[
 								styles.lasttabicon,
 								{
@@ -318,19 +326,17 @@ export default function CameraRecording({ navigation, route }) {
 								},
 							]}>
 							{check ? (
-								<Feather
-									name='pause'
-									color={'red'}
-									size={40}
-									onPress={pause}
-								/>
+								<Ionicons
+								name='pause'
+								color={'red'}
+								size={40}
+							/>
 							) : (
-								<Entypo
-									name='controller-play'
-									color={'red'}
-									size={40}
-									onPress={pause}
-								/>
+								<Ionicons
+								name='play'
+								color={'red'}
+								size={40}
+							/>
 							)}
 						</TouchableOpacity>
 						<Stopwatch
@@ -357,6 +363,7 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		alignItems: 'center',
 		marginTop: 'auto',
+		
 	},
 	middletab: {
 		height: '60%',
@@ -375,20 +382,31 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		borderColor: 'white',
 		justifyContent: 'center',
-		borderRadius: 50,
+		borderRadius: 50,	
 	},
+	container1: {
+    flex: 1,
+    
+    alignItems: 'center',
+	backgroundColor:'white'
+  },
+  image: {
+    width: 200,
+    height: 200,
+  },
 });
 
 const options = {
 	container: {
-		padding: 5,
-		borderRadius: 5,
-		width: 200,
+		margin: 10,
 		alignItems: 'center',
+		justifyContent: 'center',				
+		height: 70,
+		width: 70,
 	},
 	text: {
-		fontSize: 25,
+		fontSize: 18,
 		color: 'red',
-		marginLeft: 7,
+	
 	},
 };

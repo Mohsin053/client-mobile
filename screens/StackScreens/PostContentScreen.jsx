@@ -6,6 +6,7 @@ import {
 	StyleSheet,
 	SafeAreaView,
 	TextInput,
+	ScrollView,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import VideoPlayer from '../../components/VideoPlayer';
@@ -14,6 +15,7 @@ export default function PostContentScreen({ navigation, route }) {
 	const [text, setText] = useState('');
 	return (
 		<SafeAreaView style={{ backgroundColor: 'white', flex: 1 }}>
+		
 			<View style={styles.uppertab}>
 				<View style={styles.innertab}>
 					<TouchableOpacity onPress={() => navigation.goBack()}>
@@ -42,14 +44,15 @@ export default function PostContentScreen({ navigation, route }) {
 					</View>
 				</View>
 			</View>
-			<View style={{ flex: 1, marginTop: 10, zIndex: 10 }}>
+			<ScrollView>
+			<View style={{ flex: 1, marginTop: 10,height:200}}>
 				<VideoPlayer
 					source={route.params.uri}
 					fullscreenIcon={false}
 					recorded={true}
 				/>
 			</View>
-			<View style={{ width: '90%', alignSelf: 'center' }}>
+			<View style={{ width: '90%', alignSelf: 'center'}}>
 				<View
 					style={{
 						height: 100,
@@ -58,13 +61,14 @@ export default function PostContentScreen({ navigation, route }) {
 						marginTop: 10,
 					}}>
 					<TextInput
-						style={{ padding: 10 }}
+						style={{ padding: 10, color:'darkgray'}}
 						placeholder={'Describe your post'}
 						placeholderTextColor='darkgray'
 						multiline={true}
 						numberOfLines={10}
 						value={text}
 						onChangeText={setText}
+						
 					/>
 				</View>
 
@@ -178,7 +182,8 @@ export default function PostContentScreen({ navigation, route }) {
 					</Text>
 				</TouchableOpacity>
 			</View>
-		</SafeAreaView>
+			</ScrollView>
+			</SafeAreaView>
 	);
 }
 
@@ -209,8 +214,6 @@ const styles = StyleSheet.create({
 		alignSelf: 'center',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		position: 'absolute',
-		bottom: 0,
 	},
 	messagebutton: {
 		justifyContent: 'center',
